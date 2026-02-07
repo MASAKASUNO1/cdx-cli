@@ -1,0 +1,77 @@
+import { resolve } from "node:path";
+import type { RunOptions } from "../types.js";
+import { runSession } from "../core/session.js";
+
+/** CLI 引数をパースして RunOptions を生成 */
+export function parseRunArgs(args: string[]): RunOptions {
+  let workdir: string | undefined;
+  let instructions: string | undefined;
+  let traceFile: string | undefined;
+  let agentId: string | undefined;
+  let model: string | undefined;
+  const positional: string[] = [];
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i]!;
+    switch (arg) {
+      case "--workdir":
+      case "-w":
+        workdir = args[++i];
+        break;
+      case "--instructions":
+      case "-i":
+        instructions = args[++i];
+        break;
+      case "--trace-file":
+        traceFile = args[++i];
+        break;
+      case "--agent-id":
+        agentId = args[++i];
+        break;
+      case "--model":
+      case "-m":
+        model = args[++i];
+        break;
+      default:
+        if (!arg.startsWith("-")) {
+          positional.push(arg);
+        }
+        break;
+    }
+  }
+
+  if (!workdir) {
+    process.stderr.write("Error: --workdir (-w) is required\n");
+    process.exit(1);
+  }
+
+  const prompt = positional.join(" ");
+  if (!prompt) {
+    process.stderr.write("Error: prompt is required\n");
+    process.exit(1);
+  }
+
+  return {
+    workdir: resolve(workdir),
+    instructions: instructions ? resolve(instructions) : undefined,
+    traceFile: traceFile ? resolve(traceFile) : undefined,
+    agentId,
+    model,
+    prompt,
+  };
+}
+
+/** run コマンドを実行 */
+export async function executeRun(args: string[]): Promise<void> {
+  const options = parseRunArgs(args);
+
+  try {
+    const result = await runSession(options);
+    process.stdout.write(JSON.stringify(result, null, 2) + "\n");
+    process.exit(result.status === "completed" ? 0 : 1);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    process.stderr.write(`[cdx] fatal: ${message}\n`);
+    process.exit(2);
+  }
+}
