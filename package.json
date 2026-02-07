@@ -1,6 +1,6 @@
 {
   "name": "cdx-cli",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Codex SDK wrapper CLI for local coding tasks",
   "license": "MIT",
   "type": "module",

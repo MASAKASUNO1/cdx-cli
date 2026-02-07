@@ -9,6 +9,7 @@ Usage:
 
 Options:
   --workdir, -w <path>       Working directory (required)
+  --thread-id <id>           Resume an existing thread (session_id)
   --instructions, -i <path>  Instructions file
   --trace-file <path>        Trace output path
   --agent-id <id>            Agent ID

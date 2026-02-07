@@ -1,4 +1,5 @@
 import { Codex } from "@openai/codex-sdk";
+import type { ThreadOptions } from "@openai/codex-sdk";
 import type { RunOptions, RunResult, TraceEntry, FileChange } from "../types.js";
 import { createAccumulator, handleEvent } from "./event-handler.js";
 import { appendTrace, resolveTraceFilePath } from "./trace-writer.js";
@@ -13,13 +14,17 @@ export async function runSession(options: RunOptions): Promise<RunResult> {
 
   const codex = new Codex();
 
-  const thread = codex.startThread({
+  const threadOptions: ThreadOptions = {
     workingDirectory: options.workdir,
     sandboxMode: "workspace-write",
     approvalPolicy: "never",
     ...(options.model ? { model: options.model } : {}),
     ...(options.reasoningEffort ? { modelReasoningEffort: options.reasoningEffort } : {}),
-  });
+  };
+
+  const thread = options.threadId
+    ? codex.resumeThread(options.threadId, threadOptions)
+    : codex.startThread(threadOptions);
 
   // プロンプト構築: instructions + タスク
   let prompt = options.prompt;
@@ -29,6 +34,9 @@ export async function runSession(options: RunOptions): Promise<RunResult> {
   }
 
   const acc = createAccumulator();
+  if (options.threadId) {
+    acc.sessionId = options.threadId;
+  }
   const streamed = await thread.runStreamed(prompt);
 
   for await (const event of streamed.events) {
@@ -146,21 +154,60 @@ function resolvePathRelativeToGitRoot(workdir: string, absolutePath: string): st
 async function resolveTranscriptPath(sessionId: string | null): Promise<string> {
   if (!sessionId) return "";
   const home = process.env["HOME"] ?? "";
+  const root = `${home}/.codex/sessions`;
   const now = new Date();
   const y = now.getFullYear();
   const m = String(now.getMonth() + 1).padStart(2, "0");
   const d = String(now.getDate()).padStart(2, "0");
-  const dir = `${home}/.codex/sessions/${y}/${m}/${d}`;
+  const dir = `${root}/${y}/${m}/${d}`;
 
+  const matchToday = await findTranscriptInDirectory(dir, sessionId);
+  if (matchToday) return matchToday;
+
+  const match = await findTranscriptRecursive(root, sessionId, 4);
+  if (match) return match;
+
+  return root;
+}
+
+async function findTranscriptInDirectory(dir: string, sessionId: string): Promise<string | null> {
   try {
     const entries = await readdir(dir, { withFileTypes: true });
     const match = entries.find(
       (e) => e.isFile() && e.name.endsWith(".jsonl") && e.name.includes(sessionId),
     );
-    if (match) return `${dir}/${match.name}`;
+    if (!match) return null;
+    return `${dir}/${match.name}`;
   } catch {
-    // ignore and fall back below
+    return null;
+  }
+}
+
+async function findTranscriptRecursive(
+  root: string,
+  sessionId: string,
+  maxDepth: number,
+): Promise<string | null> {
+  const stack: Array<{ dir: string; depth: number }> = [{ dir: root, depth: 0 }];
+
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    let entries;
+    try {
+      entries = await readdir(current.dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    for (const e of entries) {
+      if (e.isFile() && e.name.endsWith(".jsonl") && e.name.includes(sessionId)) {
+        return `${current.dir}/${e.name}`;
+      }
+      if (e.isDirectory() && current.depth < maxDepth) {
+        stack.push({ dir: `${current.dir}/${e.name}`, depth: current.depth + 1 });
+      }
+    }
   }
 
-  return dir;
+  return null;
 }

@@ -12,6 +12,7 @@ const REASONING_EFFORTS = new Set([
 /** CLI 引数をパースして RunOptions を生成 */
 export function parseRunArgs(args: string[]): RunOptions {
   let workdir: string | undefined;
+  let threadId: string | undefined;
   let instructions: string | undefined;
   let traceFile: string | undefined;
   let agentId: string | undefined;
@@ -26,6 +27,10 @@ export function parseRunArgs(args: string[]): RunOptions {
       case "--workdir":
       case "-w":
         workdir = args[++i];
+        break;
+      case "--thread-id":
+      case "--session-id":
+        threadId = args[++i];
         break;
       case "--instructions":
       case "-i":
@@ -77,6 +82,7 @@ export function parseRunArgs(args: string[]): RunOptions {
 
   return {
     workdir: resolve(workdir),
+    threadId,
     instructions: instructions ? resolve(instructions) : undefined,
     traceFile: traceFile ? resolve(traceFile) : undefined,
     agentId,

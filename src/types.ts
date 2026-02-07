@@ -11,6 +11,7 @@ import type {
 /** CLI run コマンドのオプション */
 export interface RunOptions {
   workdir: string;
+  threadId?: string;
   instructions?: string;
   traceFile?: string;
   agentId?: string;

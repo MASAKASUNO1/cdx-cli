@@ -33,12 +33,19 @@ cdx-cli run -w /Users/masao/project/my-app "テストを実行して失敗を直
 オプション:
 
 - `--workdir, -w <path>`: 作業ディレクトリ（必須）
+- `--thread-id <id>`: 既存スレッドを再開（前回の出力 `session_id` を指定）
 - `--instructions, -i <path>`: 追加指示を読み込むテキストファイル
 - `--trace-file <path>`: トレースJSONの出力先
 - `--agent-id <id>`: トレースへ記録する任意のエージェントID
 - `--agent-type <type>`: トレースへ記録する任意のエージェント種別（自由入力）
 - `--model, -m <model>`: 使用モデルの上書き
 - `--thinking <effort>`: 推論強度（`low|medium|high|xhigh`）
+
+再開例:
+
+```bash
+cdx-cli run -w /path/to/project --thread-id 019c... "続きからお願い"
+```
 
 ## 出力
 
