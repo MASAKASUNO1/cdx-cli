@@ -6,24 +6,24 @@ Codex SDK を使ってローカルの作業ディレクトリに対して実行�
 
 - Node.js 20+
 - npm
-- Codex SDK が利用できる認証設定（例: `OPENAI_API_KEY`）
+- OpenAI API キー（例: `OPENAI_API_KEY`）
 
-## セットアップ
+## インストール
 
 ```bash
-npm install
+npm i -g cdx-cli
 ```
 
 ## 使い方
 
 ```bash
-npm run start -- run -w <workdir> "やってほしいこと"
+cdx-cli run -w <workdir> "やってほしいこと"
 ```
 
 例:
 
 ```bash
-npm run start -- run -w /Users/masao/project/my-app "テストを実行して失敗を直して"
+cdx-cli run -w /Users/masao/project/my-app "テストを実行して失敗を直して"
 ```
 
 ## コマンド
@@ -70,6 +70,8 @@ npm run start -- run -w /Users/masao/project/my-app "テストを実行して失
 ## 開発用コマンド
 
 ```bash
+npm install
+npm run build
 npm run typecheck
 npm run start -- --help
 ```
