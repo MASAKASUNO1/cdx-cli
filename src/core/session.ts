@@ -5,6 +5,7 @@ import { appendTrace, resolveTraceFilePath } from "./trace-writer.js";
 import { readFile } from "node:fs/promises";
 import { readdir } from "node:fs/promises";
 import { execSync } from "node:child_process";
+import { isAbsolute, relative } from "node:path";
 
 /** Codex セッションを実行し、結果を返す */
 export async function runSession(options: RunOptions): Promise<RunResult> {
@@ -36,9 +37,18 @@ export async function runSession(options: RunOptions): Promise<RunResult> {
 
   const durationMs = Date.now() - startTime;
 
+  // トレース書き込み先（このファイル自体は files_changed から除外したい）
+  const traceFilePath = options.traceFile ?? await resolveTraceFilePath(options.workdir);
+  const transcriptPath = await resolveTranscriptPath(acc.sessionId);
+  const excludedPaths = new Set<string>();
+  const traceRelativePath = resolvePathRelativeToGitRoot(options.workdir, traceFilePath);
+  if (traceRelativePath) excludedPaths.add(traceRelativePath);
+
   // git で実際の変更を検出（FileChangeItem だけでは shell 経由の変更を拾えない）
-  const gitChanges = detectGitChanges(options.workdir);
-  const filesChanged = mergeFileChanges(acc.filesChanged, gitChanges);
+  const gitChanges = detectGitChanges(options.workdir, excludedPaths);
+  const filesChanged = mergeFileChanges(acc.filesChanged, gitChanges).filter(
+    (c) => !excludedPaths.has(c.path),
+  );
 
   const result: RunResult = {
     session_id: acc.sessionId ?? "unknown",
@@ -47,10 +57,6 @@ export async function runSession(options: RunOptions): Promise<RunResult> {
     final_response: acc.finalResponse,
     duration_ms: durationMs,
   };
-
-  // トレース書き込み
-  const traceFilePath = options.traceFile ?? await resolveTraceFilePath(options.workdir);
-  const transcriptPath = await resolveTranscriptPath(acc.sessionId);
 
   const traceEntry: TraceEntry = {
     coding_agent: "codex",
@@ -70,7 +76,7 @@ export async function runSession(options: RunOptions): Promise<RunResult> {
 }
 
 /** git status + diff で実際のファイル変更を検出 */
-function detectGitChanges(workdir: string): FileChange[] {
+function detectGitChanges(workdir: string, excludedPaths: Set<string>): FileChange[] {
   try {
     // --porcelain=v1: M/A/D/?? をパース
     const output = execSync("git status --porcelain", {
@@ -81,6 +87,7 @@ function detectGitChanges(workdir: string): FileChange[] {
     return output.split("\n").map((line) => {
       const status = line.substring(0, 2).trim();
       const filePath = line.substring(3);
+      if (excludedPaths.has(filePath)) return null;
       let kind: FileChange["kind"];
       switch (status) {
         case "D":
@@ -95,7 +102,7 @@ function detectGitChanges(workdir: string): FileChange[] {
           break;
       }
       return { path: filePath, kind };
-    });
+    }).filter((c): c is FileChange => c !== null);
   } catch {
     return [];
   }
@@ -112,6 +119,27 @@ function mergeFileChanges(sdkChanges: FileChange[], gitChanges: FileChange[]): F
     }
   }
   return merged;
+}
+
+function resolveGitToplevel(workdir: string): string | null {
+  try {
+    const toplevel = execSync("git rev-parse --show-toplevel", {
+      cwd: workdir,
+      encoding: "utf-8",
+    }).trim();
+    return toplevel || null;
+  } catch {
+    return null;
+  }
+}
+
+function resolvePathRelativeToGitRoot(workdir: string, absolutePath: string): string | null {
+  const toplevel = resolveGitToplevel(workdir);
+  if (!toplevel) return null;
+
+  const rel = relative(toplevel, absolutePath);
+  if (!rel || rel.startsWith("..") || isAbsolute(rel)) return null;
+  return rel.replaceAll("\\", "/");
 }
 
 /** Codex セッションの transcript パスを推定（可能なら該当jsonlを探す） */

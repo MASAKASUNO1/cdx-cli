@@ -14,7 +14,7 @@ Options:
   --agent-id <id>            Agent ID
   --agent-type <type>        Agent type (freeform)
   --model, -m <model>        Model override
-  --thinking <effort>        Model reasoning effort (minimal|low|medium|high|xhigh)
+  --thinking <effort>        Model reasoning effort (low|medium|high|xhigh)
 `;
 
 async function main(): Promise<void> {

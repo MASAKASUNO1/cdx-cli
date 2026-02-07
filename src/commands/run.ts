@@ -3,7 +3,6 @@ import type { RunOptions } from "../types.js";
 import { runSession } from "../core/session.js";
 
 const REASONING_EFFORTS = new Set([
-  "minimal",
   "low",
   "medium",
   "high",
@@ -50,7 +49,7 @@ export function parseRunArgs(args: string[]): RunOptions {
         const next = args[++i];
         if (!next || !REASONING_EFFORTS.has(next as never)) {
           process.stderr.write(
-            "Error: --thinking must be one of minimal|low|medium|high|xhigh\n",
+            "Error: --thinking must be one of low|medium|high|xhigh\n",
           );
           process.exit(1);
         }
