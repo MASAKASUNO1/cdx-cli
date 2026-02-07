@@ -4,6 +4,7 @@ import type {
   FileChangeItem,
   CommandExecutionItem,
   AgentMessageItem,
+  ModelReasoningEffort,
   Usage,
 } from "@openai/codex-sdk";
 
@@ -13,7 +14,9 @@ export interface RunOptions {
   instructions?: string;
   traceFile?: string;
   agentId?: string;
+  agentType?: string;
   model?: string;
+  reasoningEffort?: ModelReasoningEffort;
   prompt: string;
 }
 
@@ -37,6 +40,7 @@ export interface TraceEntry {
   coding_agent: string;
   session_id: string;
   agent_id: string;
+  agent_type: string;
   status: "completed" | "failed";
   files_changed: FileChange[];
   timestamp: string;

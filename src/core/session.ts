@@ -3,20 +3,21 @@ import type { RunOptions, RunResult, TraceEntry, FileChange } from "../types.js"
 import { createAccumulator, handleEvent } from "./event-handler.js";
 import { appendTrace, resolveTraceFilePath } from "./trace-writer.js";
 import { readFile } from "node:fs/promises";
+import { readdir } from "node:fs/promises";
 import { execSync } from "node:child_process";
 
 /** Codex セッションを実行し、結果を返す */
 export async function runSession(options: RunOptions): Promise<RunResult> {
   const startTime = Date.now();
 
-  const codex = new Codex({
-    ...(options.model ? { config: { model: options.model } } : {}),
-  });
+  const codex = new Codex();
 
   const thread = codex.startThread({
     workingDirectory: options.workdir,
     sandboxMode: "workspace-write",
     approvalPolicy: "never",
+    ...(options.model ? { model: options.model } : {}),
+    ...(options.reasoningEffort ? { modelReasoningEffort: options.reasoningEffort } : {}),
   });
 
   // プロンプト構築: instructions + タスク
@@ -49,12 +50,13 @@ export async function runSession(options: RunOptions): Promise<RunResult> {
 
   // トレース書き込み
   const traceFilePath = options.traceFile ?? await resolveTraceFilePath(options.workdir);
-  const transcriptPath = resolveTranscriptPath(acc.sessionId);
+  const transcriptPath = await resolveTranscriptPath(acc.sessionId);
 
   const traceEntry: TraceEntry = {
     coding_agent: "codex",
     session_id: acc.sessionId ?? "unknown",
     agent_id: options.agentId ?? "",
+    agent_type: options.agentType ?? "",
     status: acc.status,
     files_changed: filesChanged,
     timestamp: new Date().toISOString(),
@@ -112,13 +114,25 @@ function mergeFileChanges(sdkChanges: FileChange[], gitChanges: FileChange[]): F
   return merged;
 }
 
-/** Codex セッションの transcript パスを推定 */
-function resolveTranscriptPath(sessionId: string | null): string {
+/** Codex セッションの transcript パスを推定（可能なら該当jsonlを探す） */
+async function resolveTranscriptPath(sessionId: string | null): Promise<string> {
   if (!sessionId) return "";
   const home = process.env["HOME"] ?? "";
   const now = new Date();
   const y = now.getFullYear();
   const m = String(now.getMonth() + 1).padStart(2, "0");
   const d = String(now.getDate()).padStart(2, "0");
-  return `${home}/.codex/sessions/${y}/${m}/${d}`;
+  const dir = `${home}/.codex/sessions/${y}/${m}/${d}`;
+
+  try {
+    const entries = await readdir(dir, { withFileTypes: true });
+    const match = entries.find(
+      (e) => e.isFile() && e.name.endsWith(".jsonl") && e.name.includes(sessionId),
+    );
+    if (match) return `${dir}/${match.name}`;
+  } catch {
+    // ignore and fall back below
+  }
+
+  return dir;
 }

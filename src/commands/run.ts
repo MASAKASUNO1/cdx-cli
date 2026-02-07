@@ -2,13 +2,23 @@ import { resolve } from "node:path";
 import type { RunOptions } from "../types.js";
 import { runSession } from "../core/session.js";
 
+const REASONING_EFFORTS = new Set([
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+] as const);
+
 /** CLI 引数をパースして RunOptions を生成 */
 export function parseRunArgs(args: string[]): RunOptions {
   let workdir: string | undefined;
   let instructions: string | undefined;
   let traceFile: string | undefined;
   let agentId: string | undefined;
+  let agentType: string | undefined;
   let model: string | undefined;
+  let reasoningEffort: RunOptions["reasoningEffort"];
   const positional: string[] = [];
 
   for (let i = 0; i < args.length; i++) {
@@ -28,10 +38,25 @@ export function parseRunArgs(args: string[]): RunOptions {
       case "--agent-id":
         agentId = args[++i];
         break;
+      case "--agent-type":
+        agentType = args[++i];
+        break;
       case "--model":
       case "-m":
         model = args[++i];
         break;
+      case "--thinking":
+      case "--reasoning-effort": {
+        const next = args[++i];
+        if (!next || !REASONING_EFFORTS.has(next as never)) {
+          process.stderr.write(
+            "Error: --thinking must be one of minimal|low|medium|high|xhigh\n",
+          );
+          process.exit(1);
+        }
+        reasoningEffort = next as RunOptions["reasoningEffort"];
+        break;
+      }
       default:
         if (!arg.startsWith("-")) {
           positional.push(arg);
@@ -56,7 +81,9 @@ export function parseRunArgs(args: string[]): RunOptions {
     instructions: instructions ? resolve(instructions) : undefined,
     traceFile: traceFile ? resolve(traceFile) : undefined,
     agentId,
+    agentType,
     model,
+    reasoningEffort,
     prompt,
   };
 }

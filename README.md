@@ -36,7 +36,9 @@ cdx-cli run -w /Users/masao/project/my-app "テストを実行して失敗を直
 - `--instructions, -i <path>`: 追加指示を読み込むテキストファイル
 - `--trace-file <path>`: トレースJSONの出力先
 - `--agent-id <id>`: トレースへ記録する任意のエージェントID
+- `--agent-type <type>`: トレースへ記録する任意のエージェント種別（自由入力）
 - `--model, -m <model>`: 使用モデルの上書き
+- `--thinking <effort>`: 推論強度（`minimal|low|medium|high|xhigh`）
 
 ## 出力
 
