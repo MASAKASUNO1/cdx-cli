@@ -33,6 +33,7 @@ export interface RunResult {
   status: "completed" | "failed";
   files_changed: FileChange[];
   final_response: string;
+  error?: string;
   duration_ms: number;
 }
 
@@ -44,6 +45,7 @@ export interface TraceEntry {
   agent_type: string;
   status: "completed" | "failed";
   files_changed: FileChange[];
+  error?: string;
   timestamp: string;
   duration_ms: number;
   transcript: string;

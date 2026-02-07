@@ -59,6 +59,7 @@ cdx-cli run -w /path/to/project --thread-id 019c... "続きからお願い"
     { "path": "src/foo.ts", "kind": "update" }
   ],
   "final_response": "作業内容の要約",
+  "error": "失敗時のみ（任意）",
   "duration_ms": 12345
 }
 ```

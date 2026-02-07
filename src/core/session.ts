@@ -63,6 +63,7 @@ export async function runSession(options: RunOptions): Promise<RunResult> {
     status: acc.status,
     files_changed: filesChanged,
     final_response: acc.finalResponse,
+    ...(acc.error ? { error: acc.error } : {}),
     duration_ms: durationMs,
   };
 
@@ -73,6 +74,7 @@ export async function runSession(options: RunOptions): Promise<RunResult> {
     agent_type: options.agentType ?? "",
     status: acc.status,
     files_changed: filesChanged,
+    ...(acc.error ? { error: acc.error } : {}),
     timestamp: new Date().toISOString(),
     duration_ms: durationMs,
     transcript: transcriptPath,

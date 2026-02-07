@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
-import type { RunOptions } from "../types.js";
+import type { RunOptions, RunResult } from "../types.js";
 import { runSession } from "../core/session.js";
+import { appendTrace, resolveTraceFilePath } from "../core/trace-writer.js";
 
 const REASONING_EFFORTS = new Set([
   "low",
@@ -96,6 +97,7 @@ export function parseRunArgs(args: string[]): RunOptions {
 /** run コマンドを実行 */
 export async function executeRun(args: string[]): Promise<void> {
   const options = parseRunArgs(args);
+  const startTime = Date.now();
 
   try {
     const result = await runSession(options);
@@ -104,6 +106,37 @@ export async function executeRun(args: string[]): Promise<void> {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     process.stderr.write(`[cdx] fatal: ${message}\n`);
+
+    // crash でもトレース + JSON 出力
+    const durationMs = Date.now() - startTime;
+    const crashResult: RunResult = {
+      session_id: "unknown",
+      status: "failed",
+      files_changed: [],
+      final_response: "",
+      error: message,
+      duration_ms: durationMs,
+    };
+    process.stdout.write(JSON.stringify(crashResult, null, 2) + "\n");
+
+    try {
+      const traceFilePath = options.traceFile ?? await resolveTraceFilePath(options.workdir);
+      await appendTrace(traceFilePath, {
+        coding_agent: "codex",
+        session_id: "unknown",
+        agent_id: options.agentId ?? "",
+        agent_type: options.agentType ?? "",
+        status: "failed",
+        files_changed: [],
+        error: message,
+        timestamp: new Date().toISOString(),
+        duration_ms: durationMs,
+        transcript: "",
+      });
+    } catch {
+      // トレース書き込み自体が失敗しても exit する
+    }
+
     process.exit(2);
   }
 }
